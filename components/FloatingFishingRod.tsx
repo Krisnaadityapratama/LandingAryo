@@ -4,13 +4,14 @@ import React, { useState, useEffect, useCallback } from "react";
 
 export default function FloatingFishingRod() {
   const [anchor, setAnchor] = useState<{ left: number; top: number } | null>(null);
+  const [viewportWidth, setViewportWidth] = useState<number>(0);
 
   const updateAnchor = useCallback(() => {
     const el = document.getElementById("fishing-line-endpoint");
     if (el) {
       const rect = el.getBoundingClientRect();
       
-      // Prevent double-bobbing on scroll by finding the Hero's current animation offset
+      // Prevent double-bobbing on scroll
       let yOffset = 0;
       const heroWrapper = el.closest('.animate-bob');
       if (heroWrapper) {
@@ -34,8 +35,18 @@ export default function FloatingFishingRod() {
     }
   }, []);
 
+  // Track viewport width untuk detect mobile
   useEffect(() => {
-    // Small delay to let Hero render + images load
+    const updateViewport = () => {
+      setViewportWidth(window.innerWidth);
+    };
+    
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+    return () => window.removeEventListener("resize", updateViewport);
+  }, []);
+
+  useEffect(() => {
     const timer = setTimeout(updateAnchor, 300);
 
     window.addEventListener("resize", updateAnchor);
@@ -48,27 +59,35 @@ export default function FloatingFishingRod() {
     };
   }, [updateAnchor]);
 
-  // Don't render until we know where to attach
   if (!anchor) return null;
+
+  // ============================================================
+  // OFFSET LOGIC: geser ke kiri di mobile
+  // ============================================================
+  const isMobile = viewportWidth < 768; // md breakpoint
+  
+  // Offset tambahan:
+  // Mobile: geser ke kiri ~30-40px (biar gak mepet banget)
+  // Desktop: offset 0 (pakai anchor)
+  const mobileOffsetX = isMobile ? 0 : 0;
+
+  const finalLeft = anchor.left + mobileOffsetX;
 
   return (
     <div
-      className="fixed bottom-0 z-50 pointer-events-none select-none flex md:flex flex-col items-center"
+      className="fixed bottom-0 z-50 pointer-events-none select-none flex flex-col items-center"
       style={{
-        left: `${anchor.left}px`,
+        left: `${finalLeft}px`,
         top: `${anchor.top}px`,
         transform: "translateX(-50%)",
       }}
     >
-      {/* 
-        This wrapper has animate-bob so the long line bobs in perfect sync 
-        with the fisherman in the Hero section! 
-      */}
+      {/* Wrapper dengan animate-bob sync dengan Hero */}
       <div className="flex flex-col items-center w-full h-full animate-bob">
-        {/* Thin Fishing Line — continues from the Hero fishing line endpoint */}
+        {/* Fishing line */}
         <div className="w-[1.5px] flex-grow bg-white/20" />
 
-        {/* Bait image dangling at the end of the line */}
+        {/* Bait image */}
         <img
           src="/images/cacing.png"
           alt="Cacing"

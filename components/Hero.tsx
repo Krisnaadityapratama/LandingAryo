@@ -54,7 +54,6 @@ export default function Hero() {
     }
   };
 
-  // Data dinamis dari DB dengan fallback
   const statusNote = general?.status_note?.trim() || "Please give me a job 🥺";
   const aboutName = general?.about_name?.trim() || "Aryo";
 
@@ -68,9 +67,7 @@ export default function Hero() {
           className="relative group p-2 rounded-full focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 transition-transform active:scale-95"
           aria-label="Toggle navigation menu"
         >
-          {/* Sun Menu Button */}
           <div className="relative w-14 h-14 flex items-center justify-center">
-            {/* Sun Rays (SVG rotating/pulsing decoration) */}
             <svg 
               className="absolute inset-0 w-full h-full text-brand-yellow animate-spin" 
               style={{ animationDuration: "25s" }}
@@ -92,7 +89,6 @@ export default function Hero() {
               <use href="#ray" transform="rotate(300 50 50)" />
               <use href="#ray" transform="rotate(330 50 50)" />
             </svg>
-            {/* Sun Body & Menu Icon */}
             <div className="absolute w-9 h-9 rounded-full bg-brand-yellow flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-200">
               <Menu className="w-5 h-5 text-[#030c17] stroke-[2.5]" />
             </div>
@@ -128,34 +124,73 @@ export default function Hero() {
       {/* Main Content Area */}
       <div className="flex-grow flex flex-col md:flex-row items-center justify-center px-6 md:px-16 lg:px-24 pb-12 z-20">
         
-        {/* Left Side: Fisherman Rowboat Illustration */}
-        <div className="w-full md:w-[55%] lg:w-[60%] flex justify-start items-center mb-10 md:mb-0 relative select-none md:-ml-16 lg:-ml-24">
+        {/* ============================================================ */}
+        {/* LEFT COLUMN: Image Pemancing (FIXED untuk Mobile + Desktop) */}
+        {/* ============================================================ */}
+        <div className="
+          w-full 
+          md:w-[55%] 
+          lg:w-[60%] 
+          flex 
+          justify-start 
+          items-center 
+          mb-10 
+          md:mb-0 
+          relative 
+          select-none
+          /* ============= MOBILE OFFSET ============= */
+          -ml-38         /* Geser ke kiri ~48px di mobile (lebih mepet) */
+          md:-ml-16      /* Di medium (768px+): -64px */
+          lg:-ml-24      /* Di large (1024px+): -96px */
+        ">
           
-          {/* Pleading speech bubble - DINAMIS dari general.status_note */}
-          <div className="absolute top-[-20px] left-[40%] md:left-[35%] bg-white text-slate-900 px-4 py-2 rounded-2xl shadow-xl border border-slate-300 font-serif italic text-sm md:text-base animate-bounce z-10" style={{ animationDuration: "2s" }}>
+          {/* Speech bubble */}
+          <div 
+            className="absolute top-[-20px] left-[40%] md:left-[35%] bg-white text-slate-900 px-4 py-2 rounded-2xl shadow-xl border border-slate-300 font-serif italic text-sm md:text-base animate-bounce z-10" 
+            style={{ animationDuration: "2s" }}
+          >
             {statusNote}
-            {/* Bubble Tail */}
             <div className="absolute bottom-[-8px] left-12 w-4 h-4 bg-white border-r border-b border-slate-300 rotate-45"></div>
           </div>
 
-            {/* Inner wrapper so SVG overlay maps exactly to the image */}
-            <div className="relative inline-block w-[28.75rem] ml-4 md:ml-8 lg:ml-12 animate-bob">
-              <img
-                src="/images/fishing.png"
-                alt="Fisherman silhouette in a boat"
-                className="w-full ms-[3.25rem] z-[299] h-auto drop-shadow-2xl"
-                draggable={false}
-              />
-              {/* SVG overlay: viewBox matches fishing.png native size 800×494 */}
+            {/* Image wrapper */}
+            <div className="
+              relative 
+              inline-block 
+              w-[28.75rem] 
+              
+              /* ============= MOBILE MARGIN-LEFT (geser image) ============= */
+              ml-8           /* Mobile: geser image ke kanan dari container (geser total lebih mepet kiri) */
+              md:ml-8        /* Medium */
+              lg:ml-12       /* Large */
+              
+              animate-bob
+            ">
+            {/* CONTAINER ms (geser image di dalam wrapper) */}
+            <img
+              src="/images/fishing.png"
+              alt="..."
+              className="
+                w-full 
+                
+                /* ============= MOBILE ============= */
+                ms-9              /* ← SEBELUMNYA: ms-0. UBAH ke ms-1 = geser +4px ke kanan */
+                sm:ms-2           /* ← 640px+ : +8px */
+                
+                /* ============= DESKTOP ============= */
+                md:ms-[3.25rem]   /* ← Desktop tetap 52px (TIDAK DIUBAH) */
+                
+                z-[299] h-auto drop-shadow-2xl
+              "
+              draggable={false}
+            />
+
+              {/* SVG overlay */}
               <svg
                 viewBox="0 0 800 494"
                 className="absolute inset-0 w-full h-full pointer-events-none"
                 xmlns="http://www.w3.org/2000/svg"
               >
-                {/* FISHING LINE
-                    Start: rod tip at ~(62, 4)
-                    End  : water surface at ~(62, 448)
-                */}
                 <line
                   x1="62" y1="4"
                   x2="62"  y2="448"
@@ -165,7 +200,6 @@ export default function Hero() {
                   strokeLinecap="round"
                 />
 
-                {/* WATER RIPPLES at (62, 450) - Animated (Balanced Speed) */}
                 <ellipse cx="62" cy="452" fill="none" stroke="#60a5d8" strokeWidth="2.5">
                   <animate attributeName="rx" values="0; 95" dur="4.5s" repeatCount="indefinite" begin="0s" />
                   <animate attributeName="ry" values="0; 25" dur="4.5s" repeatCount="indefinite" begin="0s" />
@@ -182,15 +216,29 @@ export default function Hero() {
                   <animate attributeName="opacity" values="0.9; 0" dur="4.5s" repeatCount="indefinite" begin="-3s" />
                 </ellipse>
 
-                {/* Hook/bob dot — anchor point for FloatingFishingRod */}
                 <circle id="fishing-line-endpoint" cx="62" cy="447" r="4" fill="#5aaad0" opacity="0.9" />
               </svg>
             </div>
 
         </div>
 
-        {/* Right Side: Text & CTA - Nama DINAMIS dari general.about_name */}
-        <div className="w-full md:w-1/2 flex flex-col items-center md:items-start text-center md:text-left md:pl-8">
+        {/* ============================================================ */}
+        {/* RIGHT COLUMN: Text & CTA */}
+        {/* ============================================================ */}
+        <div className="
+          w-full 
+          md:w-1/2 
+          flex 
+          flex-col 
+          items-center 
+          md:items-start 
+          text-center 
+          md:text-left 
+          md:pl-8
+          
+          /* ============= MOBILE OFFSET ============= */
+          -mt-8          /* Sedikit naik di mobile biar gak terlalu jauh dari image */
+        ">
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-serif font-bold text-white leading-tight tracking-tight">
             Hi, I'm <span className="text-brand-yellow">{aboutName}</span>.
           </h1>
@@ -213,7 +261,6 @@ export default function Hero() {
 
       </div>
 
-      {/* Bottom Section Spacer / Anchor */}
       <div id="about-me" className="h-4 w-full" />
     </section>
   );
