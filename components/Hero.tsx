@@ -1,50 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Menu, X, ArrowDown } from "lucide-react";
 import { useData } from "@/lib/data-provider";
 
 export default function Hero() {
   const { general } = useData();
-  const [roleText, setRoleText] = useState("");
-  const [roleIndex, setRoleIndex] = useState(0);
-  const [charIndex, setCharIndex] = useState(0);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  const roles = [
-    "Web Developer",
-    "Financial Analyst",
-    "Property Manager",
-    "Problem Solver"
-  ];
-
-  // Typewriter effect
-  useEffect(() => {
-    const currentRole = roles[roleIndex];
-    let timer: NodeJS.Timeout;
-
-    if (isDeleting) {
-      timer = setTimeout(() => {
-        setRoleText(currentRole.substring(0, charIndex - 1));
-        setCharIndex((prev) => prev - 1);
-      }, 50);
-    } else {
-      timer = setTimeout(() => {
-        setRoleText(currentRole.substring(0, charIndex + 1));
-        setCharIndex((prev) => prev + 1);
-      }, 100);
-    }
-
-    if (!isDeleting && charIndex === currentRole.length) {
-      timer = setTimeout(() => setIsDeleting(true), 1500);
-    } else if (isDeleting && charIndex === 0) {
-      setIsDeleting(false);
-      setRoleIndex((prev) => (prev + 1) % roles.length);
-    }
-
-    return () => clearTimeout(timer);
-  }, [charIndex, isDeleting, roleIndex]);
 
   const scrollToSection = (id: string) => {
     setIsMenuOpen(false);
@@ -54,8 +16,9 @@ export default function Hero() {
     }
   };
 
-  const statusNote = general?.status_note?.trim() || "Please give me a job 🥺";
-  const aboutName = general?.about_name?.trim() || "Aryo";
+  const statusNote = general?.status_note?.trim() || "";
+  const aboutName = general?.about_name?.trim() || "";
+  const aboutTitle = general?.about_title?.trim() || "";
 
   return (
     <section className="relative min-h-screen w-full flex flex-col justify-between overflow-hidden bg-gradient-to-b from-[#e0f0ff] via-[#3b82f6] to-[#030c17]">
@@ -68,8 +31,8 @@ export default function Hero() {
           aria-label="Toggle navigation menu"
         >
           <div className="relative w-14 h-14 flex items-center justify-center">
-            <svg 
-              className="absolute inset-0 w-full h-full text-brand-yellow animate-spin" 
+            <svg
+              className="absolute inset-0 w-full h-full text-brand-yellow animate-spin"
               style={{ animationDuration: "25s" }}
               viewBox="0 0 100 100"
             >
@@ -106,7 +69,7 @@ export default function Hero() {
           >
             <X className="w-6 h-6 stroke-[2.5]" />
           </button>
-          
+
           <nav className="flex flex-col space-y-6 text-center">
             {["about-me", "services", "projects", "achievements", "contact"].map((section) => (
               <button
@@ -123,130 +86,114 @@ export default function Hero() {
 
       {/* Main Content Area */}
       <div className="flex-grow flex flex-col md:flex-row items-center justify-center px-6 md:px-16 lg:px-24 pb-12 z-20">
-        
-        {/* ============================================================ */}
-        {/* LEFT COLUMN: Image Pemancing (FIXED untuk Mobile + Desktop) */}
-        {/* ============================================================ */}
+
+        {/* LEFT COLUMN: Image */}
         <div className="
-          w-full 
-          md:w-[55%] 
-          lg:w-[60%] 
-          flex 
-          justify-start 
-          items-center 
-          mb-10 
-          md:mb-0 
-          relative 
+          w-full
+          md:w-[55%]
+          lg:w-[60%]
+          flex
+          justify-start
+          items-center
+          mb-10
+          md:mb-0
+          relative
           select-none
-          /* ============= MOBILE OFFSET ============= */
-          -ml-38         /* Geser ke kiri ~48px di mobile (lebih mepet) */
-          md:-ml-16      /* Di medium (768px+): -64px */
-          lg:-ml-24      /* Di large (1024px+): -96px */
+          -ml-38
+          md:-ml-16
+          lg:-ml-24
         ">
-          
+
           {/* Speech bubble */}
-          <div 
-            className="absolute top-[-20px] left-[40%] md:left-[35%] bg-white text-slate-900 px-4 py-2 rounded-2xl shadow-xl border border-slate-300 font-serif italic text-sm md:text-base animate-bounce z-10" 
+          <div
+            className="absolute top-[-20px] left-[40%] md:left-[35%] bg-white text-slate-900 px-4 py-2 rounded-2xl shadow-xl border border-slate-300 font-serif italic text-sm md:text-base animate-bounce z-10"
             style={{ animationDuration: "2s" }}
           >
             {statusNote}
             <div className="absolute bottom-[-8px] left-12 w-4 h-4 bg-white border-r border-b border-slate-300 rotate-45"></div>
           </div>
 
-            {/* Image wrapper */}
-            <div className="
-              relative 
-              inline-block 
-              w-[28.75rem] 
-              
-              /* ============= MOBILE MARGIN-LEFT (geser image) ============= */
-              ml-8           /* Mobile: geser image ke kanan dari container (geser total lebih mepet kiri) */
-              md:ml-8        /* Medium */
-              lg:ml-12       /* Large */
-              
-              animate-bob
-            ">
-            {/* CONTAINER ms (geser image di dalam wrapper) */}
+          {/* Image wrapper */}
+          <div className="
+            relative
+            inline-block
+            w-[28.75rem]
+            ml-8
+            md:ml-8
+            lg:ml-12
+            animate-bob
+          ">
             <img
               src="/images/fishing.png"
               alt="..."
               className="
-                w-full 
-                
-                /* ============= MOBILE ============= */
-                ms-9              /* ← SEBELUMNYA: ms-0. UBAH ke ms-1 = geser +4px ke kanan */
-                sm:ms-2           /* ← 640px+ : +8px */
-                
-                /* ============= DESKTOP ============= */
-                md:ms-[3.25rem]   /* ← Desktop tetap 52px (TIDAK DIUBAH) */
-                
+                w-full
+                ms-9
+                sm:ms-2
+                md:ms-[3.25rem]
                 z-[299] h-auto drop-shadow-2xl
               "
               draggable={false}
             />
 
-              {/* SVG overlay */}
-              <svg
-                viewBox="0 0 800 494"
-                className="absolute inset-0 w-full h-full pointer-events-none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <line
-                  x1="62" y1="4"
-                  x2="62"  y2="448"
-                  stroke="white"
-                  strokeWidth="1.8"
-                  opacity="0.85"
-                  strokeLinecap="round"
-                />
+            {/* SVG overlay */}
+            <svg
+              viewBox="0 0 800 494"
+              className="absolute inset-0 w-full h-full pointer-events-none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <line
+                x1="62" y1="4"
+                x2="62" y2="448"
+                stroke="white"
+                strokeWidth="1.8"
+                opacity="0.85"
+                strokeLinecap="round"
+              />
 
-                <ellipse cx="62" cy="452" fill="none" stroke="#60a5d8" strokeWidth="2.5">
-                  <animate attributeName="rx" values="0; 95" dur="4.5s" repeatCount="indefinite" begin="0s" />
-                  <animate attributeName="ry" values="0; 25" dur="4.5s" repeatCount="indefinite" begin="0s" />
-                  <animate attributeName="opacity" values="0.9; 0" dur="4.5s" repeatCount="indefinite" begin="0s" />
-                </ellipse>
-                <ellipse cx="62" cy="452" fill="none" stroke="#60a5d8" strokeWidth="2.5">
-                  <animate attributeName="rx" values="0; 95" dur="4.5s" repeatCount="indefinite" begin="-1.5s" />
-                  <animate attributeName="ry" values="0; 25" dur="4.5s" repeatCount="indefinite" begin="-1.5s" />
-                  <animate attributeName="opacity" values="0.9; 0" dur="4.5s" repeatCount="indefinite" begin="-1.5s" />
-                </ellipse>
-                <ellipse cx="62" cy="452" fill="none" stroke="#60a5d8" strokeWidth="2.5">
-                  <animate attributeName="rx" values="0; 95" dur="4.5s" repeatCount="indefinite" begin="-3s" />
-                  <animate attributeName="ry" values="0; 25" dur="4.5s" repeatCount="indefinite" begin="-3s" />
-                  <animate attributeName="opacity" values="0.9; 0" dur="4.5s" repeatCount="indefinite" begin="-3s" />
-                </ellipse>
+              <ellipse cx="62" cy="452" fill="none" stroke="#60a5d8" strokeWidth="2.5">
+                <animate attributeName="rx" values="0; 95" dur="4.5s" repeatCount="indefinite" begin="0s" />
+                <animate attributeName="ry" values="0; 25" dur="4.5s" repeatCount="indefinite" begin="0s" />
+                <animate attributeName="opacity" values="0.9; 0" dur="4.5s" repeatCount="indefinite" begin="0s" />
+              </ellipse>
+              <ellipse cx="62" cy="452" fill="none" stroke="#60a5d8" strokeWidth="2.5">
+                <animate attributeName="rx" values="0; 95" dur="4.5s" repeatCount="indefinite" begin="-1.5s" />
+                <animate attributeName="ry" values="0; 25" dur="4.5s" repeatCount="indefinite" begin="-1.5s" />
+                <animate attributeName="opacity" values="0.9; 0" dur="4.5s" repeatCount="indefinite" begin="-1.5s" />
+              </ellipse>
+              <ellipse cx="62" cy="452" fill="none" stroke="#60a5d8" strokeWidth="2.5">
+                <animate attributeName="rx" values="0; 95" dur="4.5s" repeatCount="indefinite" begin="-3s" />
+                <animate attributeName="ry" values="0; 25" dur="4.5s" repeatCount="indefinite" begin="-3s" />
+                <animate attributeName="opacity" values="0.9; 0" dur="4.5s" repeatCount="indefinite" begin="-3s" />
+              </ellipse>
 
-                <circle id="fishing-line-endpoint" cx="62" cy="447" r="4" fill="#5aaad0" opacity="0.9" />
-              </svg>
-            </div>
+              <circle id="fishing-line-endpoint" cx="62" cy="447" r="4" fill="#5aaad0" opacity="0.9" />
+            </svg>
+          </div>
 
         </div>
 
-        {/* ============================================================ */}
         {/* RIGHT COLUMN: Text & CTA */}
-        {/* ============================================================ */}
         <div className="
-          w-full 
-          md:w-1/2 
-          flex 
-          flex-col 
-          items-center 
-          md:items-start 
-          text-center 
-          md:text-left 
+          w-full
+          md:w-1/2
+          flex
+          flex-col
+          items-center
+          md:items-start
+          text-center
+          md:text-left
           md:pl-8
-          
-          /* ============= MOBILE OFFSET ============= */
-          -mt-8          /* Sedikit naik di mobile biar gak terlalu jauh dari image */
+          -mt-8
         ">
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-serif font-bold text-white leading-tight tracking-tight">
             Hi, I'm <span className="text-brand-yellow">{aboutName}</span>.
           </h1>
-          
-          <div className="mt-4 h-10 flex items-center text-xl sm:text-2xl text-slate-200/90 font-light">
+
+          <div className="mt-4 flex items-center text-xl sm:text-2xl text-slate-200/90 font-light">
             <span>I'm a&nbsp;</span>
             <span className="font-medium text-brand-yellow border-r-2 border-brand-yellow pr-1 animate-pulse">
-              {roleText}
+              {aboutTitle}
             </span>
           </div>
 
