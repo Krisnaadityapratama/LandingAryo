@@ -10,7 +10,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
 
   const { data, error } = await supabase
     .from('services')
-    .select('*, gallery:service_gallery(*)')
+    .select('*, gallery:service_gallery(*), property_details:service_property_details(*), property_rooms:service_property_rooms(*)')
     .eq('id', id)
     .single();
 

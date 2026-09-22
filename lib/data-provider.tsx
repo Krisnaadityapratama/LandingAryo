@@ -5,6 +5,27 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 // =============================================================
 // TYPES / INTERFACES
 // =============================================================
+export interface ServicePropertyDetails {
+  id?: number;
+  service_id?: number;
+  total_rooms: number;
+  available_rooms: number;
+  headline?: string;
+  description?: string;
+  info_text?: string;
+}
+
+export interface ServicePropertyRoom {
+  id?: number;
+  service_id?: number;
+  room_number: string;
+  room_name?: string;
+  status: "available" | "booked" | "maintenance";
+  image_url?: string;
+  note?: string;
+  price?: string;
+}
+
 export interface Service {
   id: number;
   subject: string;
@@ -18,6 +39,8 @@ export interface Service {
   sheep_x: number;
   sheep_y: number;
   gallery: { id: number; image_url: string }[];
+  property_details?: ServicePropertyDetails | null;
+  property_rooms?: ServicePropertyRoom[];
 }
 
 export interface Project {
@@ -153,6 +176,25 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
 
+  const normalizeService = useCallback((item: (Partial<Service> & {
+    property_details?: ServicePropertyDetails | ServicePropertyDetails[] | null;
+    property_rooms?: ServicePropertyRoom[] | null;
+  }) | null | undefined): Service | null => {
+    if (!item) return null;
+
+    const propertyDetails = item.property_details;
+    const propertyRooms = item.property_rooms;
+
+    return {
+      ...item,
+      gallery: Array.isArray(item.gallery) ? item.gallery : [],
+      property_details: Array.isArray(propertyDetails)
+        ? (propertyDetails[0] ?? null)
+        : (propertyDetails ?? null),
+      property_rooms: Array.isArray(propertyRooms) ? propertyRooms : [],
+    } as Service;
+  }, []);
+
   // Meta state
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -168,14 +210,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
       const [g, s, p, pc, cat] = await Promise.all([
         safeFetch<General | null>("/api/general", null),
-        safeFetch<Service[]>("/api/services", []),
+        safeFetch<Array<Partial<Service>>>('/api/services', []),
         safeFetch<Project[]>("/api/projects", []),
         safeFetch<PubCer[]>("/api/pub-cer", []),
         safeFetch<Category[]>("/api/categories", []),
       ]);
 
       setGeneral(g);
-      setServices(s);
+      setServices((s ?? []).map((item) => normalizeService(item) ?? item as Service));
       setProjects(p);
       setPubCer(pc);
       setCategories(cat);
@@ -186,7 +228,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [normalizeService]);
 
   // ============================================================
   // REFRESH ONE — untuk setelah admin melakukan CRUD
@@ -251,7 +293,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   // AUTO-FETCH ON MOUNT
   // ============================================================
   useEffect(() => {
-    fetchAll();
+    const timeoutId = window.setTimeout(() => {
+      void fetchAll();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [fetchAll]);
 
   // ============================================================

@@ -4,6 +4,27 @@ import { useEffect, useState, useRef } from "react";
 import { Plus, Edit2, Trash2, X, Upload, Save, Image as ImageIcon, AlertTriangle } from "lucide-react";
 import { useData } from "@/lib/data-provider";
 
+interface ServicePropertyDetails {
+  id?: number;
+  service_id?: number;
+  total_rooms: number;
+  available_rooms: number;
+  headline: string;
+  description: string;
+  info_text: string;
+}
+
+interface ServicePropertyRoom {
+  id?: number;
+  service_id?: number;
+  room_number: string;
+  room_name: string;
+  status: "available" | "booked" | "maintenance";
+  image_url: string;
+  note: string;
+  price: string;
+}
+
 interface Service {
   id: number;
   subject: string;
@@ -17,9 +38,56 @@ interface Service {
   sheep_x: number;
   sheep_y: number;
   gallery: { id: number; image_url: string }[];
+  property_details?: ServicePropertyDetails | null;
+  property_rooms?: ServicePropertyRoom[];
 }
 
 const ICONS = ["BarChart3", "Building2", "Code2"];
+const PROPERTY_CATEGORY_NAMES = ["Property Management", "Property & Maintenance"];
+
+const normalizeDriveImageUrl = (value?: string) => {
+  if (!value) return "";
+
+  const trimmed = value.trim();
+  const rawIdMatch = trimmed.match(/^([a-zA-Z0-9_-]{10,})$/);
+  if (rawIdMatch) {
+    return `https://drive.google.com/thumbnail?id=${rawIdMatch[1]}&sz=w1000`;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    const id = parsed.searchParams.get("id") || parsed.pathname.match(/\/d\/([a-zA-Z0-9_-]{10,})/)?.[1];
+    if (id) {
+      return `https://drive.google.com/thumbnail?id=${id}&sz=w1000`;
+    }
+  } catch {
+    // ignore invalid URL and fall back to regex extraction below
+  }
+
+  const match = trimmed.match(/(?:\/d\/|[?&]id=)([a-zA-Z0-9_-]{10,})/);
+  if (!match) return trimmed;
+  return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w1000`;
+};
+
+const isPropertyCategory = (category?: string) =>
+  !!category && PROPERTY_CATEGORY_NAMES.some((name) => name.toLowerCase() === category.trim().toLowerCase());
+
+const createDefaultPropertyDetails = (): ServicePropertyDetails => ({
+  total_rooms: 0,
+  available_rooms: 0,
+  headline: "",
+  description: "",
+  info_text: "",
+});
+
+const createDefaultPropertyRoom = (): ServicePropertyRoom => ({
+  room_number: "",
+  room_name: "",
+  status: "available",
+  image_url: "",
+  note: "",
+  price: "",
+});
 
 export default function ServicesAdmin() {
   const { categories, refresh } = useData();
@@ -32,11 +100,19 @@ export default function ServicesAdmin() {
 
   const load = async () => {
     const data = await fetch("/api/services").then((r) => r.json());
-    setServices(Array.isArray(data) ? data : []);
+    const normalized = Array.isArray(data)
+      ? data.map((item) => ({
+          ...item,
+          property_details: Array.isArray(item.property_details) ? (item.property_details[0] ?? null) : (item.property_details ?? null),
+          property_rooms: Array.isArray(item.property_rooms) ? item.property_rooms : [],
+        }))
+      : [];
+    setServices(normalized);
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void load(); }, []);
 
   const handleSave = async () => {
     if (!editing) return;
@@ -44,21 +120,71 @@ export default function ServicesAdmin() {
       alert("Please fill all required fields");
       return;
     }
+
+    const normalizedPropertyDetails = Array.isArray(editing.property_details)
+      ? (editing.property_details[0] ?? createDefaultPropertyDetails())
+      : (editing.property_details ?? createDefaultPropertyDetails());
+
+    const normalizedPropertyRooms = (editing.property_rooms ?? []).filter((room) =>
+      room.room_number || room.room_name || room.image_url || room.note || room.price
+    ).map((room) => ({
+      ...room,
+      image_url: normalizeDriveImageUrl(room.image_url || ""),
+    }));
+
     const method = editing.id ? "PUT" : "POST";
     const url = editing.id ? `/api/services/${editing.id}` : "/api/services";
     const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(editing),
+      body: JSON.stringify({
+        ...editing,
+        property_details: undefined,
+        property_rooms: undefined,
+      }),
     });
-    if (res.ok) { 
-      setEditing(null); 
-      load();
-      await refresh(); // refresh global data
-    } else {
+
+    if (!res.ok) {
       const err = await res.json();
       alert(err.error || "Failed to save");
+      return;
     }
+
+    const savedService = await res.json();
+    const serviceId = savedService?.id ?? editing.id;
+
+    if (serviceId && isPropertyCategory(editing.category)) {
+      const propertyDetails = normalizedPropertyDetails;
+      const propertyRooms = normalizedPropertyRooms;
+
+      const detailRes = await fetch(`/api/services/${serviceId}/property`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(propertyDetails),
+      });
+
+      if (!detailRes.ok) {
+        const err = await detailRes.json();
+        alert(err.error || "Failed to save property details");
+        return;
+      }
+
+      const roomRes = await fetch(`/api/services/${serviceId}/property/rooms`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rooms: propertyRooms }),
+      });
+
+      if (!roomRes.ok) {
+        const err = await roomRes.json();
+        alert(err.error || "Failed to save property rooms");
+        return;
+      }
+    }
+
+    setEditing(null);
+    load();
+    await refresh();
   };
 
   const handleDelete = async (id: number) => {
@@ -78,6 +204,8 @@ export default function ServicesAdmin() {
     sky_grad: "from-sky-100 to-sky-300",
     sheep_x: 50,
     sheep_y: 130,
+    property_details: createDefaultPropertyDetails(),
+    property_rooms: [],
   });
 
   return (
@@ -113,7 +241,7 @@ export default function ServicesAdmin() {
         <div className="text-slate-500">Loading...</div>
       ) : services.length === 0 ? (
         <div className="text-center py-16 border border-dashed border-slate-800 rounded-2xl bg-[#0a1729]/30">
-          <p className="text-slate-400">No services yet. Click "Add Service" to create one.</p>
+          <p className="text-slate-400">No services yet. Click &quot;Add Service&quot; to create one.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -175,6 +303,202 @@ export default function ServicesAdmin() {
               <label className="block text-xs font-semibold tracking-widest text-slate-400 uppercase mb-2">Detail Description (longer text)</label>
               <textarea rows={5} value={editing.detail_description || ""} onChange={(e) => setEditing({ ...editing, detail_description: e.target.value })} className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/60 focus:border-brand-yellow text-slate-100 outline-none resize-none" />
             </div>
+
+            {isPropertyCategory(editing.category) && (
+              <div className="rounded-2xl border border-brand-yellow/30 bg-brand-yellow/5 p-4 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold tracking-widest uppercase text-brand-yellow">Property & Maintenance</p>
+                    <p className="text-xs text-slate-400">Custom room inventory</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <NumberField
+                    label="Total Rooms"
+                    value={String(editing.property_details?.total_rooms ?? 0)}
+                    onChange={(v) => setEditing({
+                      ...editing,
+                      property_details: {
+                        ...createDefaultPropertyDetails(),
+                        ...(editing.property_details ?? {}),
+                        total_rooms: Number(v || 0),
+                      },
+                    })}
+                  />
+                  <NumberField
+                    label="Available"
+                    value={String(editing.property_details?.available_rooms ?? 0)}
+                    onChange={(v) => setEditing({
+                      ...editing,
+                      property_details: {
+                        ...createDefaultPropertyDetails(),
+                        ...(editing.property_details ?? {}),
+                        available_rooms: Number(v || 0),
+                      },
+                    })}
+                  />
+                </div>
+
+                <Field
+                  label="Headline"
+                  value={editing.property_details?.headline ?? ""}
+                  onChange={(v) => setEditing({
+                    ...editing,
+                    property_details: {
+                      ...createDefaultPropertyDetails(),
+                      ...(editing.property_details ?? {}),
+                      headline: v,
+                    },
+                  })}
+                  placeholder="Property overview"
+                />
+
+                <div>
+                  <label className="block text-xs font-semibold tracking-widest text-slate-400 uppercase mb-2">Overview</label>
+                  <textarea
+                    rows={3}
+                    value={editing.property_details?.description ?? ""}
+                    onChange={(e) => setEditing({
+                      ...editing,
+                      property_details: {
+                        ...createDefaultPropertyDetails(),
+                        ...(editing.property_details ?? {}),
+                        description: e.target.value,
+                      },
+                    })}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/60 focus:border-brand-yellow text-slate-100 outline-none resize-none"
+                    placeholder="Short description about the property"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold tracking-widest text-slate-400 uppercase mb-2">Info text</label>
+                  <textarea
+                    rows={2}
+                    value={editing.property_details?.info_text ?? ""}
+                    onChange={(e) => setEditing({
+                      ...editing,
+                      property_details: {
+                        ...createDefaultPropertyDetails(),
+                        ...(editing.property_details ?? {}),
+                        info_text: e.target.value,
+                      },
+                    })}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/60 focus:border-brand-yellow text-slate-100 outline-none resize-none"
+                    placeholder="Extra notes or service message"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold tracking-widest uppercase text-slate-400">Rooms</p>
+                    <button
+                      type="button"
+                      onClick={() => setEditing({
+                        ...editing,
+                        property_rooms: [...(editing.property_rooms ?? []), createDefaultPropertyRoom()],
+                      })}
+                      className="px-2.5 py-1.5 rounded-lg bg-brand-yellow text-[#030c17] text-[10px] font-bold"
+                    >
+                      + Add room
+                    </button>
+                  </div>
+
+                  {(editing.property_rooms ?? []).map((room, index) => (
+                    <div key={`${room.room_number || "room"}-${index}`} className="rounded-xl border border-slate-700 bg-slate-900/60 p-3 space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field
+                          label="Room #"
+                          value={room.room_number || ""}
+                          onChange={(v) => setEditing({
+                            ...editing,
+                            property_rooms: (editing.property_rooms ?? []).map((item, i) => i === index ? { ...item, room_number: v } : item),
+                          })}
+                        />
+                        <Field
+                          label="Room name"
+                          value={room.room_name || ""}
+                          onChange={(v) => setEditing({
+                            ...editing,
+                            property_rooms: (editing.property_rooms ?? []).map((item, i) => i === index ? { ...item, room_name: v } : item),
+                          })}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold tracking-widest text-slate-400 uppercase mb-2">Status</label>
+                          <select
+                            value={room.status || "available"}
+                            onChange={(e) => setEditing({
+                              ...editing,
+                              property_rooms: (editing.property_rooms ?? []).map((item, i) => i === index ? { ...item, status: e.target.value as "available" | "booked" | "maintenance" } : item),
+                            })}
+                            className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/60 focus:border-brand-yellow text-slate-100 outline-none"
+                          >
+                            <option value="available">Available</option>
+                            <option value="booked">Booked</option>
+                            <option value="maintenance">Maintenance</option>
+                          </select>
+                        </div>
+                        <Field
+                          label="Price"
+                          value={room.price || ""}
+                          onChange={(v) => setEditing({
+                            ...editing,
+                            property_rooms: (editing.property_rooms ?? []).map((item, i) => i === index ? { ...item, price: v } : item),
+                          })}
+                          placeholder="Rp 1.500.000"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold tracking-widest text-slate-400 uppercase mb-2">Image ID / URL</label>
+                        <input
+                          type="text"
+                          value={room.image_url || ""}
+                          onChange={(e) => setEditing({
+                            ...editing,
+                            property_rooms: (editing.property_rooms ?? []).map((item, i) => i === index ? {
+                              ...item,
+                              image_url: e.target.value,
+                            } : item),
+                          })}
+                          className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/60 focus:border-brand-yellow text-slate-100 outline-none"
+                          placeholder="1hVTn9QPmGaHxuONSukBioVEdgsSLXJcw atau https://drive.google.com/..."
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold tracking-widest text-slate-400 uppercase mb-2">Note</label>
+                        <textarea
+                          rows={2}
+                          value={room.note || ""}
+                          onChange={(e) => setEditing({
+                            ...editing,
+                            property_rooms: (editing.property_rooms ?? []).map((item, i) => i === index ? { ...item, note: e.target.value } : item),
+                          })}
+                          className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/60 focus:border-brand-yellow text-slate-100 outline-none resize-none"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setEditing({
+                          ...editing,
+                          property_rooms: (editing.property_rooms ?? []).filter((_, i) => i !== index),
+                        })}
+                        className="text-xs text-red-400 hover:text-red-300"
+                      >
+                        Remove room
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold tracking-widest text-slate-400 uppercase mb-2">Icon</label>
@@ -220,6 +544,15 @@ function Field({ label, value, onChange, placeholder }: { label: string; value: 
     <div>
       <label className="block text-xs font-semibold tracking-widest text-slate-400 uppercase mb-2">{label}</label>
       <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/60 focus:border-brand-yellow text-slate-100 outline-none" />
+    </div>
+  );
+}
+
+function NumberField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold tracking-widest text-slate-400 uppercase mb-2">{label}</label>
+      <input type="number" min={0} value={value} onChange={(e) => onChange(e.target.value)} className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/60 focus:border-brand-yellow text-slate-100 outline-none" />
     </div>
   );
 }

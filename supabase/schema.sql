@@ -95,6 +95,33 @@ CREATE TABLE public.service_gallery (
 );
 CREATE INDEX idx_service_gallery_service_id ON public.service_gallery(service_id);
 
+CREATE TABLE public.service_property_details (
+  id                 BIGSERIAL PRIMARY KEY,
+  service_id         BIGINT NOT NULL UNIQUE REFERENCES public.services(id) ON DELETE CASCADE,
+  total_rooms       INTEGER NOT NULL DEFAULT 0,
+  available_rooms   INTEGER NOT NULL DEFAULT 0,
+  headline          TEXT,
+  description       TEXT,
+  info_text         TEXT,
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_service_property_details_service_id ON public.service_property_details(service_id);
+
+CREATE TABLE public.service_property_rooms (
+  id          BIGSERIAL PRIMARY KEY,
+  service_id  BIGINT NOT NULL REFERENCES public.services(id) ON DELETE CASCADE,
+  room_number TEXT NOT NULL,
+  room_name   TEXT,
+  status      TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'booked', 'maintenance')),
+  image_url   TEXT,
+  image_urls  TEXT[] DEFAULT '{}',
+  note        TEXT,
+  price       TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_service_property_rooms_service_id ON public.service_property_rooms(service_id);
+CREATE INDEX idx_service_property_rooms_status ON public.service_property_rooms(status);
+
 -- ============================================================
 -- PROJECTS
 -- ============================================================

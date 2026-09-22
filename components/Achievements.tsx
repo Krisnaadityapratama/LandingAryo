@@ -1,12 +1,15 @@
 "use client";
 
 import React, { useState, useTransition, useMemo } from "react";
-import { BookOpen, Award, FileText, Calendar, ChevronRight, ExternalLink } from "lucide-react";
-import { useData } from "@/lib/data-provider";
+import { BookOpen, Award, FileText, Calendar, ExternalLink } from "lucide-react";
+import { useData, type PubCer } from "@/lib/data-provider";
+
+const INITIAL_VISIBLE_ACHIEVEMENTS = 5;
 
 export default function Achievements() {
   const { pubCer, categories, loading } = useData();
   const [activeFilter, setActiveFilter] = useState<string>("All");
+  const [showAll, setShowAll] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   // Filter dari DB categories (sama seperti versi lama)
@@ -20,9 +23,15 @@ export default function Achievements() {
     return (pubCer || []).filter((a) => a.type === activeFilter);
   }, [pubCer, activeFilter]);
 
+  const visibleAchievements = useMemo(() => {
+    if (showAll || filteredAchievements.length <= INITIAL_VISIBLE_ACHIEVEMENTS) return filteredAchievements;
+    return filteredAchievements.slice(0, INITIAL_VISIBLE_ACHIEVEMENTS);
+  }, [filteredAchievements, showAll]);
+
   const handleFilterChange = (filter: string) => {
     startTransition(() => {
       setActiveFilter(filter);
+      setShowAll(false);
     });
   };
 
@@ -97,18 +106,16 @@ export default function Achievements() {
         )}
 
         {/* Rows List Container */}
-        <div className="relative flex items-center w-full gap-6">
-          
+        <div className="w-full">
           <div 
             className={`flex-grow flex flex-col space-y-4 transition-opacity duration-300 ${
               isPending ? "opacity-55" : "opacity-100"
             }`}
           >
-            {filteredAchievements.map((ach) => {
+            {visibleAchievements.map((ach: PubCer) => {
               const badge = getBadgeStyles(ach.type);
-              // Jika ada URL, jadikan link; jika tidak, plain div
-              const Wrapper: any = ach.url ? "a" : "div";
-              const wrapperProps: any = ach.url
+              const Wrapper = (ach.url ? "a" : "div") as keyof JSX.IntrinsicElements;
+              const wrapperProps = ach.url
                 ? { href: ach.url, target: "_blank", rel: "noopener noreferrer" }
                 : {};
 
@@ -154,15 +161,14 @@ export default function Achievements() {
             )}
           </div>
 
-          {/* Right Arrow Paging overlay */}
-          {filteredAchievements.length > 0 && (
-            <div className="hidden lg:flex shrink-0">
+          {filteredAchievements.length > INITIAL_VISIBLE_ACHIEVEMENTS && (
+            <div className="mt-10 flex justify-center w-full">
               <button
-                onClick={() => handleFilterChange("All")}
-                className="flex items-center justify-center w-14 h-14 rounded-full bg-[#0c1c31] border border-slate-800 hover:border-brand-yellow/50 text-slate-300 hover:text-brand-yellow hover:scale-105 active:scale-95 shadow-xl transition-all duration-200"
-                aria-label="Show all achievements"
+                type="button"
+                onClick={() => setShowAll((prev) => !prev)}
+                className="px-5 py-2.5 rounded-full border border-slate-700 bg-[#0c1c31] text-sm font-medium text-slate-200 hover:border-brand-yellow hover:text-brand-yellow transition-colors duration-200"
               >
-                <ChevronRight className="w-6 h-6 stroke-[2.5]" />
+                {showAll ? "Show less" : "Show all"}
               </button>
             </div>
           )}

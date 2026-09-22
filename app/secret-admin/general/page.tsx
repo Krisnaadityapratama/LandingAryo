@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Save, CheckCircle, AlertCircle, Upload, Trash2, Image as ImageIcon, User } from "lucide-react";
+import { Save, CheckCircle, AlertCircle, Upload, Trash2, User } from "lucide-react";
 
 interface GeneralData {
   status_note: string;
@@ -14,6 +14,29 @@ interface GeneralData {
   about_image_url: string;
 }
 
+const parseRoles = (value: string): string[] => {
+  const raw = (value ?? "").trim();
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((item) => String(item).trim())
+        .filter(Boolean);
+    }
+  } catch {
+    // fallback below
+  }
+
+  return raw
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
+const formatRoles = (roles: string[]) => JSON.stringify(roles.map((item) => item.trim()).filter(Boolean));
+
 export default function GeneralPage() {
   const [data, setData] = useState<GeneralData>({
     status_note: "",
@@ -25,6 +48,8 @@ export default function GeneralPage() {
     contact_whatsapp: "",
     about_image_url: "",
   });
+  const [roles, setRoles] = useState<string[]>([]);
+  const [newRole, setNewRole] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -38,20 +63,22 @@ export default function GeneralPage() {
     fetch("/api/general")
       .then((r) => r.json())
       .then((d) => {
+        const nextTitle = d?.about_title ?? "";
         setData({
           status_note: d?.status_note ?? "",
           about_name: d?.about_name ?? "",
-          about_title: d?.about_title ?? "",
+          about_title: nextTitle,
           about_description: d?.about_description ?? "",
           contact_email: d?.contact_email ?? "",
           contact_linkedin: d?.contact_linkedin ?? "",
           contact_whatsapp: d?.contact_whatsapp ?? "",
           about_image_url: d?.about_image_url ?? "",
         });
+        setRoles(parseRoles(nextTitle));
         setLoading(false);
       })
-      .catch((err) => {
-        console.error("Failed to load:", err);
+      .catch((error) => {
+        console.error("Failed to load:", error);
         setLoading(false);
       });
   }, []);
@@ -59,16 +86,39 @@ export default function GeneralPage() {
   // ============================================================
   // HANDLE SAVE
   // ============================================================
+  const handleRoleAdd = () => {
+    const value = newRole.trim();
+    if (!value) return;
+
+    setRoles((prev) => {
+      const normalized = prev.map((item) => item.trim());
+      if (normalized.includes(value)) {
+        return normalized;
+      }
+      return [...normalized, value];
+    });
+    setNewRole("");
+  };
+
+  const handleRoleRemove = (index: number) => {
+    setRoles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setStatus(null);
+
+    const payload = {
+      ...data,
+      about_title: formatRoles(roles),
+    };
     
     try {
       const res = await fetch("/api/general", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
       
       if (res.ok) {
@@ -76,13 +126,14 @@ export default function GeneralPage() {
         setData({
           ...data,
           ...updated,
+          about_title: updated.about_title ?? formatRoles(roles),
         });
         setStatus({ type: "success", message: "Saved successfully!" });
       } else {
         const err = await res.json();
         setStatus({ type: "error", message: err.error || "Failed to save" });
       }
-    } catch (err) {
+    } catch {
       setStatus({ type: "error", message: "Network error" });
     } finally {
       setSaving(false);
@@ -126,7 +177,7 @@ export default function GeneralPage() {
       } else {
         setStatus({ type: "error", message: result.error || "Upload failed" });
       }
-    } catch (err) {
+    } catch {
       setStatus({ type: "error", message: "Upload error" });
     } finally {
       setUploading(false);
@@ -219,7 +270,7 @@ export default function GeneralPage() {
             {/* Upload controls */}
             <div className="flex-1 space-y-2">
               <p className="text-xs text-slate-400">
-                Upload image untuk "Who I Am" section. Disarankan format kotak (1:1), minimal 400x400px.
+                Upload image untuk section Who I Am. Disarankan format kotak (1:1), minimal 400x400px.
               </p>
               <p className="text-[10px] text-slate-500">
                 Format: JPEG, PNG, WEBP, GIF · Max 5MB
@@ -260,13 +311,54 @@ export default function GeneralPage() {
             </div>
             <div>
               <label className="block text-xs font-semibold tracking-widest text-slate-400 uppercase mb-2">Title / Role</label>
-              <input
-                type="text"
-                value={data.about_title}
-                onChange={(e) => setData({ ...data, about_title: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/60 focus:border-brand-yellow text-slate-100 outline-none"
-                placeholder="Web Developer"
-              />
+
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2 min-h-[44px]">
+                  {roles.length > 0 ? (
+                    roles.map((role, index) => (
+                      <button
+                        key={`${role}-${index}`}
+                        type="button"
+                        onClick={() => handleRoleRemove(index)}
+                        className="inline-flex items-center gap-2 rounded-full border border-brand-yellow/40 bg-brand-yellow/10 px-3 py-1.5 text-sm text-brand-yellow hover:bg-brand-yellow/20 transition-colors"
+                        title="Klik untuk hapus role"
+                      >
+                        <span>{role}</span>
+                        <span className="text-xs">×</span>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="text-sm text-slate-500">Belum ada role. Tambahkan role pertama.</p>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newRole}
+                    onChange={(e) => setNewRole(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleRoleAdd();
+                      }
+                    }}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/60 focus:border-brand-yellow text-slate-100 outline-none"
+                    placeholder="Web Developer"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRoleAdd}
+                    className="px-4 py-3 rounded-xl bg-brand-yellow hover:bg-brand-yellow-dark text-[#030c17] font-bold transition-colors"
+                  >
+                    Add
+                  </button>
+                </div>
+
+                <p className="text-xs text-slate-400">
+                  Bisa menambah lebih dari satu role. Role akan berganti otomatis di halaman utama seperti efek ketikan.
+                </p>
+              </div>
             </div>
             <div>
               <label className="block text-xs font-semibold tracking-widest text-slate-400 uppercase mb-2">

@@ -6,7 +6,7 @@ import { verifyAdmin } from '@/lib/auth';
 export async function GET() {
   const { data, error } = await supabase
     .from('services')
-    .select('*, gallery:service_gallery(*)')
+    .select('*, gallery:service_gallery(*), property_details:service_property_details(*), property_rooms:service_property_rooms(*)')
     .order('sort_order', { ascending: true })
     .order('id', { ascending: true });
 

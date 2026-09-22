@@ -2,18 +2,21 @@
 
 import React, { useState, useTransition, useMemo } from "react";
 import { ChevronRight, ImageOff } from "lucide-react";
-import { useData } from "@/lib/data-provider";
+import { useData, type Project } from "@/lib/data-provider";
 import ProjectDetailModal from "./ProjectDetailModal";
+
+const INITIAL_VISIBLE_PROJECTS = 6;
 
 export default function Projects() {
   const { projects, categories, loading } = useData();
   const [activeFilter, setActiveFilter] = useState<string>("All");
+  const [showAll, setShowAll] = useState(false);
   const [isPending, startTransition] = useTransition();
   
   // ============================================================
   // MODAL STATE
   // ============================================================
-  const [selectedProject, setSelectedProject] = useState<any | null>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
 
   // ============================================================
@@ -29,9 +32,15 @@ export default function Projects() {
     return (projects || []).filter((p) => p.category === activeFilter);
   }, [projects, activeFilter]);
 
+  const visibleProjects = useMemo(() => {
+    if (showAll || filteredProjects.length <= INITIAL_VISIBLE_PROJECTS) return filteredProjects;
+    return filteredProjects.slice(0, INITIAL_VISIBLE_PROJECTS);
+  }, [filteredProjects, showAll]);
+
   const handleFilterChange = (filter: string) => {
     startTransition(() => {
       setActiveFilter(filter);
+      setShowAll(false);
     });
   };
 
@@ -94,14 +103,13 @@ export default function Projects() {
           )}
 
           {/* Projects Grid */}
-          <div className="relative flex items-center w-full">
-            
+          <div className="w-full">
             <div
               className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full transition-opacity duration-300 ${
                 isPending ? "opacity-55" : "opacity-100"
               }`}
             >
-              {filteredProjects.map((project: any) => {
+              {visibleProjects.map((project: Project) => {
                 // ============================================================
                 // IMAGE & SVG RESOLUTION
                 // ============================================================
@@ -216,15 +224,14 @@ export default function Projects() {
               )}
             </div>
 
-            {/* Right Arrow */}
-            {filteredProjects.length > 0 && (
-              <div className="hidden lg:flex absolute right-[-70px] top-1/2 -translate-y-1/2 z-20">
+            {filteredProjects.length > INITIAL_VISIBLE_PROJECTS && (
+              <div className="mt-10 flex justify-center w-full">
                 <button
-                  onClick={() => handleFilterChange("All")}
-                  className="flex items-center justify-center w-12 h-12 rounded-full bg-[#0c1c31] border border-slate-800 hover:border-brand-yellow/50 text-slate-300 hover:text-brand-yellow hover:scale-105 active:scale-95 shadow-xl transition-all duration-200"
-                  aria-label="Show all projects"
+                  type="button"
+                  onClick={() => setShowAll((prev) => !prev)}
+                  className="px-5 py-2.5 rounded-full border border-slate-700 bg-[#0c1c31] text-sm font-medium text-slate-200 hover:border-brand-yellow hover:text-brand-yellow transition-colors duration-200"
                 >
-                  <ChevronRight className="w-5 h-5 stroke-[2.5]" />
+                  {showAll ? "Show less" : "Show all"}
                 </button>
               </div>
             )}

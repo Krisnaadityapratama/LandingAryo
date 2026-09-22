@@ -1,12 +1,77 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Menu, X, ArrowDown } from "lucide-react";
 import { useData } from "@/lib/data-provider";
+
+const parseRoles = (value: string): string[] => {
+  const raw = (value ?? "").trim();
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((item) => String(item).trim())
+        .filter(Boolean);
+    }
+  } catch {
+    // fallback to plain text parsing below
+  }
+
+  return raw
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
+function RoleText({ role, onDone }: { role: string; onDone: () => void }) {
+  const [displayedRole, setDisplayedRole] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    if (!role) return;
+
+    if (!isDeleting && displayedRole.length < role.length) {
+      const timeout = setTimeout(() => {
+        setDisplayedRole(role.slice(0, displayedRole.length + 1));
+      }, 90);
+
+      return () => clearTimeout(timeout);
+    }
+
+    if (!isDeleting && displayedRole.length === role.length) {
+      const timeout = setTimeout(() => {
+        setIsDeleting(true);
+      }, 1200);
+
+      return () => clearTimeout(timeout);
+    }
+
+    if (isDeleting && displayedRole.length > 0) {
+      const timeout = setTimeout(() => {
+        setDisplayedRole(role.slice(0, displayedRole.length - 1));
+      }, 45);
+
+      return () => clearTimeout(timeout);
+    }
+
+    if (isDeleting && displayedRole.length === 0) {
+      const timeout = setTimeout(() => {
+        onDone();
+      }, 50);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [displayedRole, isDeleting, onDone, role]);
+
+  return <>{displayedRole}</>;
+}
 
 export default function Hero() {
   const { general } = useData();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [roleIndex, setRoleIndex] = useState(0);
 
   const scrollToSection = (id: string) => {
     setIsMenuOpen(false);
@@ -19,6 +84,13 @@ export default function Hero() {
   const statusNote = general?.status_note?.trim() || "";
   const aboutName = general?.about_name?.trim() || "";
   const aboutTitle = general?.about_title?.trim() || "";
+  const roles = parseRoles(aboutTitle);
+  const currentRole = roles[roleIndex % roles.length] || "";
+
+  const handleRoleDone = () => {
+    if (!roles.length) return;
+    setRoleIndex((prev) => (prev + 1) % roles.length);
+  };
 
   return (
     <section className="relative min-h-screen w-full flex flex-col justify-between overflow-hidden bg-gradient-to-b from-[#e0f0ff] via-[#3b82f6] to-[#030c17]">
@@ -187,13 +259,17 @@ export default function Hero() {
           -mt-8
         ">
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-serif font-bold text-white leading-tight tracking-tight">
-            Hi, I'm <span className="text-brand-yellow">{aboutName}</span>.
+            Hi, I&apos;m <span className="text-brand-yellow">{aboutName}</span>.
           </h1>
 
           <div className="mt-4 flex items-center text-xl sm:text-2xl text-slate-200/90 font-light">
-            <span>I'm a&nbsp;</span>
-            <span className="font-medium text-brand-yellow border-r-2 border-brand-yellow pr-1 animate-pulse">
-              {aboutTitle}
+            <span>I&apos;m a&nbsp;</span>
+            <span className="min-w-[10ch] font-medium text-brand-yellow border-r-2 border-brand-yellow pr-1 animate-pulse">
+              {roles.length ? (
+                <RoleText key={`${roleIndex}-${currentRole}`} role={currentRole} onDone={handleRoleDone} />
+              ) : (
+                aboutTitle
+              )}
             </span>
           </div>
 

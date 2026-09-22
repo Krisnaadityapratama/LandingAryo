@@ -2,6 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { verifyAdmin } from '@/lib/auth';
 
+const normalizeAboutTitle = (value: unknown): string => {
+  if (Array.isArray(value)) {
+    const roles = value.map((item) => String(item).trim()).filter(Boolean);
+    return JSON.stringify(roles);
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        const roles = parsed.map((item) => String(item).trim()).filter(Boolean);
+        return JSON.stringify(roles);
+      }
+    } catch {
+      // keep it as plain string for backwards compatibility
+    }
+
+    return trimmed;
+  }
+
+  return '';
+};
+
 // GET — public
 export async function GET() {
   const { data, error } = await supabase
@@ -29,7 +55,7 @@ export async function GET() {
     ...data,
     status_note: data.status_note ?? '',
     about_name: data.about_name ?? '',
-    about_title: data.about_title ?? '',
+    about_title: normalizeAboutTitle(data.about_title),
     about_description: data.about_description ?? '',
     contact_email: data.contact_email ?? '',
     contact_linkedin: data.contact_linkedin ?? '',
@@ -50,7 +76,7 @@ export async function PUT(request: NextRequest) {
     .update({
       status_note: body.status_note ?? '',
       about_name: body.about_name ?? '',
-      about_title: body.about_title ?? '',
+      about_title: normalizeAboutTitle(body.about_title),
       about_description: body.about_description ?? '',
       contact_email: body.contact_email ?? '',
       contact_linkedin: body.contact_linkedin ?? '',
@@ -69,7 +95,7 @@ export async function PUT(request: NextRequest) {
     ...data,
     status_note: data.status_note ?? '',
     about_name: data.about_name ?? '',
-    about_title: data.about_title ?? '',
+    about_title: normalizeAboutTitle(data.about_title),
     about_description: data.about_description ?? '',
     contact_email: data.contact_email ?? '',
     contact_linkedin: data.contact_linkedin ?? '',
