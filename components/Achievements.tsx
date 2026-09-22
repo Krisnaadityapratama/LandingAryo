@@ -114,7 +114,7 @@ export default function Achievements() {
           >
             {visibleAchievements.map((ach: PubCer) => {
               const badge = getBadgeStyles(ach.type);
-              const Wrapper = (ach.url ? "a" : "div") as keyof JSX.IntrinsicElements;
+              const Wrapper: React.ElementType = ach.url ? "a" : "div";
               const wrapperProps = ach.url
                 ? { href: ach.url, target: "_blank", rel: "noopener noreferrer" }
                 : {};
