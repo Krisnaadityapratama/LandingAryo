@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useState, useTransition, useMemo } from "react";
-import { BookOpen, Award, FileText, Calendar, ExternalLink } from "lucide-react";
+import { BookOpen, Award, FileText, Calendar, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { useData, type PubCer } from "@/lib/data-provider";
 
-const INITIAL_VISIBLE_ACHIEVEMENTS = 5;
+const VISIBLE_ACHIEVEMENTS = 5;
 
 export default function Achievements() {
   const { pubCer, categories, loading } = useData();
   const [activeFilter, setActiveFilter] = useState<string>("All");
-  const [showAll, setShowAll] = useState(false);
+  const [achievementStart, setAchievementStart] = useState(0);
   const [isPending, startTransition] = useTransition();
 
   // Filter dari DB categories (sama seperti versi lama)
@@ -23,15 +23,15 @@ export default function Achievements() {
     return (pubCer || []).filter((a) => a.type === activeFilter);
   }, [pubCer, activeFilter]);
 
-  const visibleAchievements = useMemo(() => {
-    if (showAll || filteredAchievements.length <= INITIAL_VISIBLE_ACHIEVEMENTS) return filteredAchievements;
-    return filteredAchievements.slice(0, INITIAL_VISIBLE_ACHIEVEMENTS);
-  }, [filteredAchievements, showAll]);
+  const visibleAchievements = useMemo(
+    () => filteredAchievements.slice(achievementStart, achievementStart + VISIBLE_ACHIEVEMENTS),
+    [filteredAchievements, achievementStart]
+  );
 
   const handleFilterChange = (filter: string) => {
     startTransition(() => {
       setActiveFilter(filter);
-      setShowAll(false);
+      setAchievementStart(0);
     });
   };
 
@@ -107,11 +107,12 @@ export default function Achievements() {
 
         {/* Rows List Container */}
         <div className="w-full">
-          <div 
-            className={`flex-grow flex flex-col space-y-4 transition-opacity duration-300 ${
-              isPending ? "opacity-55" : "opacity-100"
-            }`}
-          >
+          <div className="flex items-center gap-4">
+            <div
+              className={`flex-grow flex flex-col space-y-4 transition-opacity duration-300 ${
+                isPending ? "opacity-55" : "opacity-100"
+              }`}
+            >
             {visibleAchievements.map((ach: PubCer) => {
               const badge = getBadgeStyles(ach.type);
               const Wrapper: React.ElementType = ach.url ? "a" : "div";
@@ -159,19 +160,31 @@ export default function Achievements() {
                 <p className="text-slate-400 font-light">No achievements found in this category.</p>
               </div>
             )}
-          </div>
-
-          {filteredAchievements.length > INITIAL_VISIBLE_ACHIEVEMENTS && (
-            <div className="mt-10 flex justify-center w-full">
-              <button
-                type="button"
-                onClick={() => setShowAll((prev) => !prev)}
-                className="px-5 py-2.5 rounded-full border border-slate-700 bg-[#0c1c31] text-sm font-medium text-slate-200 hover:border-brand-yellow hover:text-brand-yellow transition-colors duration-200"
-              >
-                {showAll ? "Show less" : "Show all"}
-              </button>
             </div>
-          )}
+
+            {filteredAchievements.length > VISIBLE_ACHIEVEMENTS && (
+              <div className="flex flex-col gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setAchievementStart((current) => Math.max(0, current - 1))}
+                  disabled={achievementStart === 0}
+                  className="p-2 rounded-full border border-slate-700 bg-[#0c1c31] text-slate-300 hover:border-brand-yellow hover:text-brand-yellow disabled:opacity-30 disabled:hover:border-slate-700 disabled:hover:text-slate-300 transition-colors"
+                  aria-label="Previous publications and certifications"
+                >
+                  <ChevronUp className="w-5 h-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAchievementStart((current) => Math.min(filteredAchievements.length - VISIBLE_ACHIEVEMENTS, current + 1))}
+                  disabled={achievementStart >= filteredAchievements.length - VISIBLE_ACHIEVEMENTS}
+                  className="p-2 rounded-full border border-slate-700 bg-[#0c1c31] text-slate-300 hover:border-brand-yellow hover:text-brand-yellow disabled:opacity-30 disabled:hover:border-slate-700 disabled:hover:text-slate-300 transition-colors"
+                  aria-label="Next publications and certifications"
+                >
+                  <ChevronDown className="w-5 h-5" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </section>

@@ -1,16 +1,16 @@
 "use client";
 
 import React, { useState, useTransition, useMemo } from "react";
-import { ChevronRight, ImageOff } from "lucide-react";
+import { ChevronLeft, ChevronRight, ImageOff } from "lucide-react";
 import { useData, type Project } from "@/lib/data-provider";
 import ProjectDetailModal from "./ProjectDetailModal";
 
-const INITIAL_VISIBLE_PROJECTS = 6;
+const VISIBLE_PROJECTS = 4;
 
 export default function Projects() {
   const { projects, categories, loading } = useData();
   const [activeFilter, setActiveFilter] = useState<string>("All");
-  const [showAll, setShowAll] = useState(false);
+  const [projectStart, setProjectStart] = useState(0);
   const [isPending, startTransition] = useTransition();
   
   // ============================================================
@@ -32,15 +32,15 @@ export default function Projects() {
     return (projects || []).filter((p) => p.category === activeFilter);
   }, [projects, activeFilter]);
 
-  const visibleProjects = useMemo(() => {
-    if (showAll || filteredProjects.length <= INITIAL_VISIBLE_PROJECTS) return filteredProjects;
-    return filteredProjects.slice(0, INITIAL_VISIBLE_PROJECTS);
-  }, [filteredProjects, showAll]);
+  const visibleProjects = useMemo(
+    () => filteredProjects.slice(projectStart, projectStart + VISIBLE_PROJECTS),
+    [filteredProjects, projectStart]
+  );
 
   const handleFilterChange = (filter: string) => {
     startTransition(() => {
       setActiveFilter(filter);
-      setShowAll(false);
+      setProjectStart(0);
     });
   };
 
@@ -104,11 +104,24 @@ export default function Projects() {
 
           {/* Projects Grid */}
           <div className="w-full">
-            <div
-              className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full transition-opacity duration-300 ${
-                isPending ? "opacity-55" : "opacity-100"
-              }`}
-            >
+            <div className="flex items-center gap-3 sm:gap-5">
+              {filteredProjects.length > VISIBLE_PROJECTS && (
+                <button
+                  type="button"
+                  onClick={() => setProjectStart((current) => Math.max(0, current - 1))}
+                  disabled={projectStart === 0}
+                  className="shrink-0 p-2 rounded-full border border-slate-700 bg-[#0c1c31] text-slate-300 hover:border-brand-yellow hover:text-brand-yellow disabled:opacity-30 disabled:hover:border-slate-700 disabled:hover:text-slate-300 transition-colors"
+                  aria-label="Previous projects"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+              )}
+
+              <div
+                className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full transition-opacity duration-300 ${
+                  isPending ? "opacity-55" : "opacity-100"
+                }`}
+              >
               {visibleProjects.map((project: Project) => {
                 // ============================================================
                 // IMAGE & SVG RESOLUTION
@@ -222,19 +235,21 @@ export default function Projects() {
                   <p className="text-slate-400 font-light">No projects found in this category.</p>
                 </div>
               )}
-            </div>
+              </div>
 
-            {filteredProjects.length > INITIAL_VISIBLE_PROJECTS && (
-              <div className="mt-10 flex justify-center w-full">
+              {filteredProjects.length > VISIBLE_PROJECTS && (
                 <button
                   type="button"
-                  onClick={() => setShowAll((prev) => !prev)}
-                  className="px-5 py-2.5 rounded-full border border-slate-700 bg-[#0c1c31] text-sm font-medium text-slate-200 hover:border-brand-yellow hover:text-brand-yellow transition-colors duration-200"
+                  onClick={() => setProjectStart((current) => Math.min(filteredProjects.length - VISIBLE_PROJECTS, current + 1))}
+                  disabled={projectStart >= filteredProjects.length - VISIBLE_PROJECTS}
+                  className="shrink-0 p-2 rounded-full border border-slate-700 bg-[#0c1c31] text-slate-300 hover:border-brand-yellow hover:text-brand-yellow disabled:opacity-30 disabled:hover:border-slate-700 disabled:hover:text-slate-300 transition-colors"
+                  aria-label="Next projects"
                 >
-                  {showAll ? "Show less" : "Show all"}
+                  <ChevronRight className="w-5 h-5" />
                 </button>
-              </div>
-            )}
+              )}
+            </div>
+
           </div>
         </div>
       </section>

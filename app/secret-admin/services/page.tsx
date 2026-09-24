@@ -21,6 +21,7 @@ interface ServicePropertyRoom {
   room_name: string;
   status: "available" | "booked" | "maintenance";
   image_url: string;
+  image_urls?: string[];
   note: string;
   price: string;
 }
@@ -126,11 +127,18 @@ export default function ServicesAdmin() {
       : (editing.property_details ?? createDefaultPropertyDetails());
 
     const normalizedPropertyRooms = (editing.property_rooms ?? []).filter((room) =>
-      room.room_number || room.room_name || room.image_url || room.note || room.price
-    ).map((room) => ({
-      ...room,
-      image_url: normalizeDriveImageUrl(room.image_url || ""),
-    }));
+      room.room_number || room.room_name || room.image_url || room.image_urls?.some(Boolean) || room.note || room.price
+    ).map((room) => {
+      const imageUrls = [...(room.image_urls ?? []), ...(room.image_url ? [room.image_url] : [])]
+        .map((url) => normalizeDriveImageUrl(url))
+        .filter(Boolean);
+
+      return {
+        ...room,
+        image_url: imageUrls[0] || "",
+        image_urls: [...new Set(imageUrls)],
+      };
+    });
 
     const method = editing.id ? "PUT" : "POST";
     const url = editing.id ? `/api/services/${editing.id}` : "/api/services";
@@ -406,7 +414,7 @@ export default function ServicesAdmin() {
                   </div>
 
                   {(editing.property_rooms ?? []).map((room, index) => (
-                    <div key={`${room.room_number || "room"}-${index}`} className="rounded-xl border border-slate-700 bg-slate-900/60 p-3 space-y-3">
+                    <div key={room.id ?? `room-${index}`} className="rounded-xl border border-slate-700 bg-slate-900/60 p-3 space-y-3">
                       <div className="grid grid-cols-2 gap-3">
                         <Field
                           label="Room #"
@@ -454,19 +462,20 @@ export default function ServicesAdmin() {
                       </div>
 
                       <div>
-                        <label className="block text-xs font-semibold tracking-widest text-slate-400 uppercase mb-2">Image ID / URL</label>
-                        <input
-                          type="text"
-                          value={room.image_url || ""}
+                        <label className="block text-xs font-semibold tracking-widest text-slate-400 uppercase mb-2">Room image links</label>
+                        <textarea
+                          rows={3}
+                          value={[...(room.image_urls ?? []), ...(room.image_url && !(room.image_urls ?? []).includes(room.image_url) ? [room.image_url] : [])].join("\n")}
                           onChange={(e) => setEditing({
                             ...editing,
                             property_rooms: (editing.property_rooms ?? []).map((item, i) => i === index ? {
                               ...item,
-                              image_url: e.target.value,
+                              image_url: "",
+                              image_urls: e.target.value.split(/\r?\n/),
                             } : item),
                           })}
-                          className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/60 focus:border-brand-yellow text-slate-100 outline-none"
-                          placeholder="1hVTn9QPmGaHxuONSukBioVEdgsSLXJcw atau https://drive.google.com/..."
+                          className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700/60 focus:border-brand-yellow text-slate-100 outline-none resize-y"
+                          placeholder="Satu link Google Drive per baris"
                         />
                       </div>
 

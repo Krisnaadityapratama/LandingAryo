@@ -49,6 +49,7 @@ interface PropertyRoomPayload {
   room_name?: string;
   status?: "available" | "booked" | "maintenance";
   image_url?: string;
+  image_urls?: string[];
   note?: string;
   price?: string;
 }
@@ -74,15 +75,23 @@ export async function PUT(request: NextRequest, ctx: Ctx) {
     return NextResponse.json({ success: true, count: 0 });
   }
 
-  const payload = rooms.map((room: PropertyRoomPayload, index: number) => ({
-    service_id: Number(id),
-    room_number: String(room.room_number ?? `Room ${index + 1}`),
-    room_name: room.room_name ?? '',
-    status: room.status ?? 'available',
-    image_url: normalizeDriveImageUrl(room.image_url || ''),
-    note: room.note ?? '',
-    price: room.price ?? '',
-  }));
+  const payload = rooms.map((room: PropertyRoomPayload, index: number) => {
+    const imageUrls = [...(room.image_urls ?? []), ...(room.image_url ? [room.image_url] : [])]
+      .map((url) => normalizeDriveImageUrl(url))
+      .filter(Boolean);
+    const uniqueImageUrls = [...new Set(imageUrls)];
+
+    return {
+      service_id: Number(id),
+      room_number: String(room.room_number ?? `Room ${index + 1}`),
+      room_name: room.room_name ?? '',
+      status: room.status ?? 'available',
+      image_url: uniqueImageUrls[0] ?? '',
+      image_urls: uniqueImageUrls,
+      note: room.note ?? '',
+      price: room.price ?? '',
+    };
+  });
 
   const { data, error } = await supabase
     .from('service_property_rooms')
