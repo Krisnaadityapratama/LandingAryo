@@ -5,6 +5,7 @@ import {
   BarChart3, 
   Building2, 
   Code2, 
+  ChevronLeft,
   ChevronRight, 
   Layers, 
   ImageOff 
@@ -40,6 +41,13 @@ export default function Services() {
       setActiveIndex((prev) => (prev + 1) % services.length);
     }
     setImageError(false); // reset error saat pindah service
+  };
+
+  const handlePrevious = () => {
+    if (services.length > 0) {
+      setActiveIndex((prev) => (prev - 1 + services.length) % services.length);
+    }
+    setImageError(false);
   };
 
   // Reset error saat ganti tab
@@ -126,10 +134,19 @@ export default function Services() {
           </div>
 
           {/* Card + Navigation */}
-          <div className="flex flex-col md:flex-row items-center gap-8">
+          <div className="grid grid-cols-2 items-center gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,48rem)_minmax(0,1fr)] md:gap-8">
+
+            {/* Previous Arrow Navigation */}
+            <button
+              onClick={handlePrevious}
+              className="col-start-1 row-start-2 justify-self-end md:col-start-1 md:row-start-1 md:justify-self-end flex items-center justify-center w-14 h-14 rounded-full bg-[#0c1c31] border border-slate-800 hover:border-brand-yellow/50 text-slate-300 hover:text-brand-yellow hover:scale-105 active:scale-95 shadow-xl hover:shadow-brand-yellow/5 transition-all duration-200"
+              aria-label="Previous service"
+            >
+              <ChevronLeft className="w-6 h-6 stroke-[2.5]" />
+            </button>
             
             {/* Main Service Card */}
-            <div className="w-full max-w-3xl rounded-3xl overflow-hidden shadow-2xl border border-slate-800 bg-[#0c1c31] transition-all duration-500 hover:border-slate-700 flex flex-col">
+            <div className="col-span-2 row-start-1 w-full max-w-3xl md:col-span-1 md:col-start-2 md:row-start-1 rounded-3xl overflow-hidden shadow-2xl border border-slate-800 bg-[#0c1c31] transition-all duration-500 hover:border-slate-700 flex flex-col">
               
               {/* ============================================== */}
               {/* TOP HALF: IMAGE GALLERY or SVG FALLBACK */}
@@ -240,7 +257,7 @@ export default function Services() {
             {/* Right Arrow Navigation */}
             <button
               onClick={handleNext}
-              className="flex items-center justify-center w-14 h-14 rounded-full bg-[#0c1c31] border border-slate-800 hover:border-brand-yellow/50 text-slate-300 hover:text-brand-yellow hover:scale-105 active:scale-95 shadow-xl hover:shadow-brand-yellow/5 transition-all duration-200"
+              className="col-start-2 row-start-2 justify-self-start md:col-start-3 md:row-start-1 md:justify-self-start flex items-center justify-center w-14 h-14 rounded-full bg-[#0c1c31] border border-slate-800 hover:border-brand-yellow/50 text-slate-300 hover:text-brand-yellow hover:scale-105 active:scale-95 shadow-xl hover:shadow-brand-yellow/5 transition-all duration-200"
               aria-label="Next service"
             >
               <ChevronRight className="w-6 h-6 stroke-[2.5]" />
