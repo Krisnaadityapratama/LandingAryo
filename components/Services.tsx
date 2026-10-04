@@ -1,14 +1,14 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { 
-  BarChart3, 
-  Building2, 
-  Code2, 
+import {
+  BarChart3,
+  Building2,
+  Code2,
   ChevronLeft,
-  ChevronRight, 
-  Layers, 
-  ImageOff 
+  ChevronRight,
+  Layers,
+  ImageOff,
 } from "lucide-react";
 import { useData } from "@/lib/data-provider";
 import ServiceDetailModal from "./ServiceDetailModal";
@@ -33,7 +33,7 @@ export default function Services() {
 
   const activeService = useMemo(
     () => services[activeIndex],
-    [services, activeIndex]
+    [services, activeIndex],
   );
 
   const handleNext = () => {
@@ -82,7 +82,9 @@ export default function Services() {
         <h2 className="text-4xl md:text-5xl font-serif font-bold text-white mt-2 leading-tight">
           Services
         </h2>
-        <p className="text-slate-500 mt-6">No services yet. Add them via admin panel.</p>
+        <p className="text-slate-500 mt-6">
+          No services yet. Add them via admin panel.
+        </p>
       </section>
     );
   }
@@ -101,7 +103,6 @@ export default function Services() {
         className="relative w-full bg-[#030c17] py-24 px-6 md:px-16 lg:px-24 flex flex-col justify-center overflow-hidden"
       >
         <div className="max-w-6xl mx-auto w-full z-20">
-          
           {/* Title */}
           <div className="flex flex-col items-center md:items-start text-center md:text-left mb-12">
             <span className="text-sm font-semibold tracking-widest text-brand-yellow uppercase">
@@ -135,7 +136,6 @@ export default function Services() {
 
           {/* Card + Navigation */}
           <div className="grid grid-cols-2 items-center gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,48rem)_minmax(0,1fr)] md:gap-8">
-
             {/* Previous Arrow Navigation */}
             <button
               onClick={handlePrevious}
@@ -144,17 +144,19 @@ export default function Services() {
             >
               <ChevronLeft className="w-6 h-6 stroke-[2.5]" />
             </button>
-            
+
             {/* Main Service Card */}
             <div className="col-span-2 row-start-1 w-full max-w-3xl md:col-span-1 md:col-start-2 md:row-start-1 rounded-3xl overflow-hidden shadow-2xl border border-slate-800 bg-[#0c1c31] transition-all duration-500 hover:border-slate-700 flex flex-col">
-              
               {/* ============================================== */}
               {/* TOP HALF: IMAGE GALLERY or SVG FALLBACK */}
               {/* ============================================== */}
-              <div className={`relative w-full h-44 sm:h-52 border-b border-slate-800 overflow-hidden ${
-                !hasGallery ? `bg-gradient-to-b ${activeService.sky_grad}` : 'bg-slate-900'
-              }`}>
-                
+              <div
+                className={`relative w-full h-44 sm:h-52 border-b border-slate-800 overflow-hidden ${
+                  !hasGallery
+                    ? `bg-gradient-to-b ${activeService.sky_grad}`
+                    : "bg-slate-900"
+                }`}
+              >
                 {/* PRIORITY 1: Image dari gallery (kalau ada & belum error) */}
                 {hasGallery && firstImage && !imageError ? (
                   <>
@@ -162,18 +164,18 @@ export default function Services() {
                       key={firstImage} // Force re-fetch kalau URL berubah
                       src={firstImage}
                       alt={activeService.name}
-                      className="absolute inset-0 w-full h-full object-cover"
+                      className="absolute inset-0 w-full h-full object-contain"
                       loading="lazy"
                       onError={() => {
-                        console.warn('⚠️ Image failed to load:', firstImage);
+                        console.warn("⚠️ Image failed to load:", firstImage);
                         setImageError(true);
                       }}
                       onLoad={() => {
-                        console.log('✅ Image loaded:', firstImage);
+                        console.log("✅ Image loaded:", firstImage);
                         setImageError(false);
                       }}
                     />
-                    
+
                     {/* Gallery counter badge */}
                     {activeService.gallery.length > 1 && (
                       <div className="absolute top-2 right-2 px-2 py-1 rounded-full bg-black/70 backdrop-blur-sm text-white text-[10px] font-medium flex items-center gap-1">
@@ -201,17 +203,66 @@ export default function Services() {
                         fill={activeService.hill_color}
                         className="transition-all duration-700"
                       />
-                      <ellipse cx="30" cy="18" rx="12" ry="4" fill="white" opacity="0.8" />
-                      <ellipse cx="160" cy="15" rx="16" ry="5" fill="white" opacity="0.8" />
-                      <ellipse cx="170" cy="18" rx="10" ry="4" fill="white" opacity="0.8" />
+                      <ellipse
+                        cx="30"
+                        cy="18"
+                        rx="12"
+                        ry="4"
+                        fill="white"
+                        opacity="0.8"
+                      />
+                      <ellipse
+                        cx="160"
+                        cy="15"
+                        rx="16"
+                        ry="5"
+                        fill="white"
+                        opacity="0.8"
+                      />
+                      <ellipse
+                        cx="170"
+                        cy="18"
+                        rx="10"
+                        ry="4"
+                        fill="white"
+                        opacity="0.8"
+                      />
                       <g
                         transform={`translate(${activeService.sheep_x}, ${activeService.sheep_y})`}
                         className="transition-all duration-1000 ease-out"
                       >
-                        <line x1="2" y1="6" x2="2" y2="10" stroke="#000" strokeWidth="1" />
-                        <line x1="4" y1="6" x2="4" y2="10" stroke="#000" strokeWidth="1" />
-                        <line x1="7" y1="6" x2="7" y2="10" stroke="#000" strokeWidth="1" />
-                        <line x1="9" y1="6" x2="9" y2="10" stroke="#000" strokeWidth="1" />
+                        <line
+                          x1="2"
+                          y1="6"
+                          x2="2"
+                          y2="10"
+                          stroke="#000"
+                          strokeWidth="1"
+                        />
+                        <line
+                          x1="4"
+                          y1="6"
+                          x2="4"
+                          y2="10"
+                          stroke="#000"
+                          strokeWidth="1"
+                        />
+                        <line
+                          x1="7"
+                          y1="6"
+                          x2="7"
+                          y2="10"
+                          stroke="#000"
+                          strokeWidth="1"
+                        />
+                        <line
+                          x1="9"
+                          y1="6"
+                          x2="9"
+                          y2="10"
+                          stroke="#000"
+                          strokeWidth="1"
+                        />
                         <ellipse cx="5" cy="4" rx="6" ry="4" fill="#ffffff" />
                         <circle cx="11" cy="3" r="2" fill="#1e293b" />
                       </g>
@@ -235,11 +286,11 @@ export default function Services() {
                 <span className="text-xs font-semibold tracking-widest text-brand-yellow uppercase">
                   {activeService.category}
                 </span>
-                
+
                 <h3 className="text-2xl sm:text-3xl font-bold text-white mt-2 leading-tight">
                   {activeService.name}
                 </h3>
-                
+
                 <p className="mt-4 text-slate-300 text-sm sm:text-base leading-relaxed">
                   {activeService.description}
                 </p>
