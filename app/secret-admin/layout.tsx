@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   Home, Settings, Briefcase, FolderKanban, Award,
-  MessageSquare, LogOut, Shield, Tags, Menu, X
+  MessageSquare, LogOut, Shield, Tags, Menu, X, BookOpen
 } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -57,6 +57,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: "/secret-admin/pub-cer", label: "Pub & Cer", icon: Award },
     { href: "/secret-admin/categories", label: "Categories", icon: Tags },
     { href: "/secret-admin/messages", label: "Messages", icon: MessageSquare },
+    { href: "/secret-admin/journal", label: "Journal", icon: BookOpen },
   ];
 
   return (
