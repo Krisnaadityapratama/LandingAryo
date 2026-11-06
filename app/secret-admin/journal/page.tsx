@@ -9,17 +9,19 @@ import {
   ChevronDown,
   ChevronUp,
   Edit2,
+  FileDown,
   Plus,
   Save,
   Trash2,
   X,
 } from "lucide-react";
+import { jsPDF } from "jspdf";
+import { autoTable, RowInput } from "jspdf-autotable";
 
 interface Bank {
   id: number;
   name: string;
   account_number: string;
-  account_holder: string;
 }
 
 interface JournalLine {
@@ -72,9 +74,15 @@ function localDateValue() {
   return localDate.toISOString().slice(0, 10);
 }
 
+function formatJournalDate(value: string) {
+  return new Date(`${value}T00:00:00`).toLocaleDateString("id-ID");
+}
+
 export default function JournalAdmin() {
   const [journals, setJournals] = useState<Journal[]>([]);
   const [banks, setBanks] = useState<Bank[]>([]);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState("");
   const [formError, setFormError] = useState("");
@@ -92,9 +100,8 @@ export default function JournalAdmin() {
     { ...EMPTY_LINE },
     { ...EMPTY_LINE },
   ]);
-  const [bankName, setBankName] = useState("");
-  const [bankNumber, setBankNumber] = useState("");
-  const [bankHolder, setBankHolder] = useState("");
+  const [accountName, setAccountName] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
 
   const loadData = useCallback(async () => {
     const [journalResponse, bankResponse] = await Promise.all([
@@ -136,6 +143,18 @@ export default function JournalAdmin() {
   );
   const isBalanced =
     totals.debit > 0 && Math.abs(totals.debit - totals.credit) < 0.005;
+  const invalidPeriod = Boolean(startDate && endDate && startDate > endDate);
+  const filteredJournals = useMemo(
+    () =>
+      invalidPeriod
+        ? []
+        : journals.filter(
+            (journal) =>
+              (!startDate || journal.post_date >= startDate) &&
+              (!endDate || journal.post_date <= endDate),
+          ),
+    [endDate, invalidPeriod, journals, startDate],
+  );
 
   const resetJournalForm = () => {
     setEditingJournalId(null);
@@ -242,36 +261,34 @@ export default function JournalAdmin() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: bankName,
-          account_number: bankNumber,
-          account_holder: bankHolder,
+          name: accountName,
+          account_number: accountNumber,
         }),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Bank gagal ditambahkan.");
-      setBankName("");
-      setBankNumber("");
-      setBankHolder("");
+      if (!response.ok) throw new Error(result.error || "Account gagal ditambahkan.");
+      setAccountName("");
+      setAccountNumber("");
       await loadData();
     } catch (error) {
-      setPageError(error instanceof Error ? error.message : "Bank gagal ditambahkan.");
+      setPageError(error instanceof Error ? error.message : "Account gagal ditambahkan.");
     } finally {
       setSavingBank(false);
     }
   };
 
   const deleteBank = async (bank: Bank) => {
-    if (!confirm(`Hapus bank "${bank.name}" dari daftar?`)) return;
+    if (!confirm(`Hapus account "${bank.name}" dari Account List?`)) return;
     setPageError("");
     try {
       const response = await fetch(`/api/journals/banks/${bank.id}`, {
         method: "DELETE",
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Bank gagal dihapus.");
+      if (!response.ok) throw new Error(result.error || "Account gagal dihapus.");
       await loadData();
     } catch (error) {
-      setPageError(error instanceof Error ? error.message : "Bank gagal dihapus.");
+      setPageError(error instanceof Error ? error.message : "Account gagal dihapus.");
     }
   };
 
@@ -298,6 +315,150 @@ export default function JournalAdmin() {
     }
   };
 
+  const exportJournalsToPdf = () => {
+    if (invalidPeriod || filteredJournals.length === 0) return;
+
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    const banksById = new Map(banks.map((bank) => [bank.id, bank.name]));
+    const body: RowInput[] = [];
+
+    for (const journal of filteredJournals) {
+      for (const line of journal.journal_lines) {
+        body.push([
+          journal.voucher_no,
+          formatJournalDate(journal.post_date),
+          journal.kos,
+          journal.user_remark || "-",
+          line.account_name,
+          line.bank_id ? banksById.get(line.bank_id) ?? "Bank dihapus" : "-",
+          line.line_remark || "-",
+          formatAmount(Number(line.debit)),
+          formatAmount(Number(line.credit)),
+        ]);
+      }
+
+      body.push([
+        {
+          content: `Total ${journal.voucher_no}`,
+          colSpan: 7,
+          styles: {
+            fillColor: [30, 41, 59],
+            textColor: [255, 255, 255],
+            fontStyle: "bold",
+            halign: "right",
+          },
+        },
+        {
+          content: formatAmount(Number(journal.total_debit)),
+          styles: {
+            fillColor: [30, 41, 59],
+            textColor: [255, 255, 255],
+            fontStyle: "bold",
+            halign: "right",
+          },
+        },
+        {
+          content: formatAmount(Number(journal.total_credit)),
+          styles: {
+            fillColor: [30, 41, 59],
+            textColor: [255, 255, 255],
+            fontStyle: "bold",
+            halign: "right",
+          },
+        },
+      ]);
+    }
+
+    const periodTotals = filteredJournals.reduce(
+      (totals, journal) => ({
+        debit: totals.debit + Number(journal.total_debit),
+        credit: totals.credit + Number(journal.total_credit),
+      }),
+      { debit: 0, credit: 0 },
+    );
+    body.push([
+      {
+        content: "TOTAL KESELURUHAN PERIODE",
+        colSpan: 7,
+        styles: {
+          fillColor: [15, 23, 42],
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+          halign: "right",
+        },
+      },
+      {
+        content: formatAmount(periodTotals.debit),
+        styles: {
+          fillColor: [15, 23, 42],
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+          halign: "right",
+        },
+      },
+      {
+        content: formatAmount(periodTotals.credit),
+        styles: {
+          fillColor: [15, 23, 42],
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+          halign: "right",
+        },
+      },
+    ]);
+
+    const periodStart = startDate ? formatJournalDate(startDate) : "Tidak dibatasi";
+    const periodEnd = endDate ? formatJournalDate(endDate) : "Tidak dibatasi";
+    doc.setFontSize(16);
+    doc.text("Laporan Journal", 8, 12);
+    doc.setFontSize(9);
+    doc.text(`Periode: ${periodStart} - ${periodEnd}`, 8, 19);
+    doc.text(`Jumlah voucher: ${filteredJournals.length}`, 8, 24);
+
+    autoTable(doc, {
+      startY: 29,
+      head: [[
+        "Voucher",
+        "Tanggal",
+        "Kos",
+        "Catatan Journal",
+        "Akun",
+        "Bank",
+        "Keterangan Baris",
+        "Debit",
+        "Kredit",
+      ]],
+      body,
+      theme: "grid",
+      margin: { left: 8, right: 8 },
+      styles: {
+        font: "helvetica",
+        fontSize: 7,
+        cellPadding: 2,
+        overflow: "linebreak",
+      },
+      headStyles: {
+        fillColor: [15, 23, 42],
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+      },
+      columnStyles: {
+        0: { cellWidth: 22 },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 24 },
+        3: { cellWidth: 34 },
+        4: { cellWidth: 27 },
+        5: { cellWidth: 24 },
+        6: { cellWidth: 42 },
+        7: { cellWidth: 36, halign: "right" },
+        8: { cellWidth: 36, halign: "right" },
+      },
+    });
+
+    const dateSuffix = (value: string) => value || "all";
+    doc.save(`journal-${dateSuffix(startDate)}-to-${dateSuffix(endDate)}.pdf`);
+  };
+
   return (
     <div className="p-6 lg:p-12">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -319,7 +480,7 @@ export default function JournalAdmin() {
             className="flex items-center gap-2 rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-200 transition-colors hover:border-slate-500 hover:bg-slate-800"
           >
             <Building2 className="h-4 w-4" />
-            Daftar Bank
+            Account List
           </button>
           <button
             onClick={() => {
@@ -358,8 +519,8 @@ export default function JournalAdmin() {
 
       <div className="mb-5 grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-800 bg-[#0a1729] p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Voucher</p>
-          <p className="mt-2 text-2xl font-bold text-white">{journals.length}</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Voucher Periode</p>
+          <p className="mt-2 text-2xl font-bold text-white">{filteredJournals.length}</p>
         </div>
         <div className="rounded-2xl border border-slate-800 bg-[#0a1729] p-5">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Bank Terdaftar</p>
@@ -368,9 +529,48 @@ export default function JournalAdmin() {
         <div className="rounded-2xl border border-slate-800 bg-[#0a1729] p-5">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Voucher Terbaru</p>
           <p className="mt-2 truncate text-lg font-bold text-brand-yellow">
-            {journals[0]?.voucher_no ?? "-"}
+            {filteredJournals[0]?.voucher_no ?? "-"}
           </p>
         </div>
+      </div>
+
+      <div className="mb-5 flex flex-col gap-4 rounded-2xl border border-slate-800 bg-[#0a1729]/70 p-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Tanggal Mulai
+            <input
+              type="date"
+              value={startDate}
+              max={endDate || undefined}
+              onChange={(event) => setStartDate(event.target.value)}
+              className="mt-2 block rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-2.5 text-sm font-normal normal-case tracking-normal text-white outline-none focus:border-brand-yellow"
+            />
+          </label>
+          <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Tanggal Akhir
+            <input
+              type="date"
+              value={endDate}
+              min={startDate || undefined}
+              onChange={(event) => setEndDate(event.target.value)}
+              className="mt-2 block rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-2.5 text-sm font-normal normal-case tracking-normal text-white outline-none focus:border-brand-yellow"
+            />
+          </label>
+          {invalidPeriod && (
+            <p role="alert" className="text-sm text-red-300 sm:col-span-2">
+              Tanggal Mulai tidak boleh melewati Tanggal Akhir.
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={exportJournalsToPdf}
+          disabled={loading || invalidPeriod || filteredJournals.length === 0}
+          className="flex items-center justify-center gap-2 rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-200 transition-colors hover:border-brand-yellow hover:text-brand-yellow disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <FileDown className="h-4 w-4" />
+          Export PDF
+        </button>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-800 bg-[#0a1729]/70">
@@ -379,11 +579,10 @@ export default function JournalAdmin() {
         </div>
         {loading ? (
           <div className="p-10 text-center text-sm text-slate-500">Memuat journal...</div>
-        ) : journals.length === 0 ? (
+        ) : filteredJournals.length === 0 ? (
           <div className="p-12 text-center">
             <BookOpen className="mx-auto mb-3 h-10 w-10 text-slate-600" />
-            <p className="text-slate-300">Belum ada journal.</p>
-            <p className="mt-1 text-sm text-slate-500">Mulai dengan tombol Input Journal.</p>
+            <p className="text-slate-300">Data Journal tidak tersedia untuk periode yang dipilih.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -398,7 +597,7 @@ export default function JournalAdmin() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/80">
-                {journals.map((journal) => (
+                {filteredJournals.map((journal) => (
                   <JournalRow
                     key={journal.id}
                     journal={journal}
@@ -639,7 +838,7 @@ export default function JournalAdmin() {
           <button
             className="fixed inset-0 bg-black/80 backdrop-blur-sm"
             onClick={() => setShowBankManager(false)}
-            aria-label="Tutup daftar bank"
+            aria-label="Tutup Account List"
           />
           <div className="relative my-6 w-full max-w-2xl rounded-2xl border border-slate-700 bg-[#0a1729] p-5 shadow-2xl sm:p-7">
             <button
@@ -649,63 +848,68 @@ export default function JournalAdmin() {
             >
               <X className="h-4 w-4" />
             </button>
-            <h2 className="text-xl font-bold text-white">Daftar Bank</h2>
+            <h2 className="text-xl font-bold text-white">Account List</h2>
             <p className="mb-5 mt-1 text-sm text-slate-500">
-              Bank yang ditambahkan tersedia sebagai pilihan saat input journal.
+              Account yang ditambahkan tersedia sebagai pilihan saat input journal.
             </p>
-            <form onSubmit={addBank} className="grid gap-3 rounded-xl border border-slate-800 bg-slate-900/40 p-4 sm:grid-cols-3">
+            <form onSubmit={addBank} className="grid gap-3 rounded-xl border border-slate-800 bg-slate-900/40 p-4 sm:grid-cols-[1fr_1fr_auto]">
               <input
                 required
-                value={bankName}
-                onChange={(event) => setBankName(event.target.value)}
-                placeholder="Nama bank"
-                aria-label="Nama bank"
+                value={accountName}
+                onChange={(event) => setAccountName(event.target.value)}
+                placeholder="Nama Account"
+                aria-label="Nama Account"
                 className="rounded-lg border border-slate-700 bg-[#030c17] px-3 py-2.5 text-sm text-white outline-none focus:border-brand-yellow"
               />
               <input
-                value={bankNumber}
-                onChange={(event) => setBankNumber(event.target.value)}
-                placeholder="Nomor rekening"
-                aria-label="Nomor rekening"
+                value={accountNumber}
+                onChange={(event) => setAccountNumber(event.target.value)}
+                placeholder="Nomor Account"
+                aria-label="Nomor Account"
                 className="rounded-lg border border-slate-700 bg-[#030c17] px-3 py-2.5 text-sm text-white outline-none focus:border-brand-yellow"
               />
-              <div className="flex gap-2">
-                <input
-                  value={bankHolder}
-                  onChange={(event) => setBankHolder(event.target.value)}
-                  placeholder="Nama pemilik"
-                  aria-label="Nama pemilik rekening"
-                  className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-[#030c17] px-3 py-2.5 text-sm text-white outline-none focus:border-brand-yellow"
-                />
-                <button
-                  disabled={savingBank}
-                  className="rounded-lg bg-brand-yellow px-3 text-[#030c17] disabled:opacity-50"
-                  aria-label="Simpan bank"
-                >
-                  {savingBank ? "..." : <Plus className="h-4 w-4" />}
-                </button>
-              </div>
+              <button
+                disabled={savingBank}
+                className="flex items-center justify-center rounded-lg bg-brand-yellow px-3 text-[#030c17] disabled:opacity-50"
+                aria-label="Simpan account"
+              >
+                {savingBank ? "..." : <Plus className="h-4 w-4" />}
+              </button>
             </form>
-            <div className="mt-4 max-h-[45vh] space-y-2 overflow-y-auto">
-              {banks.length === 0 ? (
-                <p className="py-6 text-center text-sm text-slate-500">Belum ada bank.</p>
-              ) : banks.map((bank) => (
-                <div key={bank.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 px-4 py-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-white">{bank.name}</p>
-                    <p className="mt-0.5 truncate text-xs text-slate-500">
-                      {[bank.account_number, bank.account_holder].filter(Boolean).join(" · ") || "Detail rekening belum diisi"}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => deleteBank(bank)}
-                    className="rounded-lg p-2 text-slate-500 hover:bg-red-500/10 hover:text-red-300"
-                    aria-label={`Hapus ${bank.name}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
+            <div className="mt-4 max-h-[45vh] overflow-y-auto rounded-xl border border-slate-800">
+              <table className="w-full text-left text-sm">
+                <thead className="sticky top-0 bg-slate-900 text-xs uppercase tracking-wide text-slate-400">
+                  <tr>
+                    <th scope="col" className="px-4 py-3 font-semibold">Nomor Account</th>
+                    <th scope="col" className="px-4 py-3 font-semibold">Nama Account</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {banks.length === 0 ? (
+                    <tr>
+                      <td colSpan={2} className="px-4 py-6 text-center text-slate-500">
+                        Belum ada account.
+                      </td>
+                    </tr>
+                  ) : banks.map((bank) => (
+                    <tr key={bank.id} className="text-slate-200">
+                      <td className="px-4 py-3">{bank.account_number || "—"}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="min-w-0 truncate font-medium text-white">{bank.name}</span>
+                          <button
+                            onClick={() => deleteBank(bank)}
+                            className="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-red-500/10 hover:text-red-300"
+                            aria-label={`Hapus ${bank.name}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
